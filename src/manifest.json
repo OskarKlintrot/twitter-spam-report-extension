@@ -1,0 +1,20 @@
+{
+  "name": "Spam Reporter",
+  "description" : "Extension for reporting followers as spam and block them",
+  "version": "1.0",
+  "browser_action": {
+    "default_popup": "reportTool.html",
+    "default_icon": "reportTool_extensions.png"
+  },
+  "manifest_version": 2,
+  "content_scripts": [
+    {
+      "matches": ["https://twitter.com/*/followers"],
+      "js": ["jquery-3.3.1.slim.min.js", "spamReporter.js"]
+    }
+  ],
+  "permissions": [
+    "https://twitter.com/*",
+    "https://api.twitter.com/*"
+  ]
+}
