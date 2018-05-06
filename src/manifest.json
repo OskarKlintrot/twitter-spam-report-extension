@@ -1,7 +1,7 @@
 {
   "name": "Twitter Spam Report Button",
   "description" : "Extension for reporting followers as spam and block them",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "browser_action": {
     "default_popup": "reportTool.html",
     "default_icon": "reportTool_extensions.png"
@@ -10,7 +10,7 @@
   "content_scripts": [
     {
       "matches": ["https://twitter.com/*"],
-      "js": ["jquery-3.3.1.slim.min.js", "contentScript.js"]
+      "js": ["jquery-3.3.1.min.js", "contentScript.js"]
     }
   ],
   "background": {
