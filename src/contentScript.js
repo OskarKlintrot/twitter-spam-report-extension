@@ -12,25 +12,62 @@ const template = username =>
     </button>
 </span>`
 
-const handleReport = (username, userId, elementToRemove) => {
-    const xhr = new XMLHttpRequest()
-    const params = `authenticity_token=${authenticityToken}&report_type="spam"&block_user=true&user_id=${userId}`
-    xhr.open('POST', 'https://twitter.com/i/user/report_spam', true)
-    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
-    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest")
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 403)) {
-            console.log(`Successfully reported and blocked ${username}`) 
-            elementToRemove.remove()
-        }
+async function getContext (currentUserId, userId) {
+    let result = {}
+
+    const authTokenString = 'authenticity_token'
+    const contextString = 'context'
+
+    try {
+        await $.get(`https://twitter.com/i/safety/report_story?client_location=me%3Afollowers%3Auser&client_referer=%2F&is_media=false&is_promoted=false&lang=sv&next_view=report_story_start&reported_user_id=${userId}&reporter_user_id=${currentUserId}&source=reportprofile`,
+            body => {
+                result.context = $(body).find(`[name="${contextString}"]`).val()
+                result.authToken = $(body).find(`[name="${authTokenString}"]`).val()
+            }, 'html')
+
+        return result;
+    } catch (error) {
+        console.error(error)
     }
-    xhr.send(params)
 }
 
-const authenticityToken = $("#signout-form input.authenticity_token").val()
+async function handleReport (currentUserId, username, userId, elementToRemove) {
+    const context = await getContext(currentUserId, userId)
+
+    const reportParams = `authenticity_token=${context.authToken}&context=${context.context}&lang=sv&is_mobile=false&report_type=spam`;
+    const blockParams = `authenticity_token=${context.authToken}&challenges_passed=false&handles_challenges=1&impression_id=&user_id=${userId}`;
+    
+    await xhr('POST', 'https://twitter.com/i/safety/report_story', reportParams)
+    await xhr('POST', 'https://twitter.com/i/user/block', blockParams)
+    
+    console.log(`Successfully reported and blocked ${username}`)
+
+    elementToRemove.remove()
+}
+
+const xhr = (method, url, params) => {
+    return new Promise(function(resolve, reject) {
+        const xhr = new XMLHttpRequest()
+        xhr.open(method, url, true)
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest")
+        xhr.setRequestHeader("X-Twitter-Active-User", "yes")
+        xhr.setRequestHeader("Accept", "application/json, text/javascript, */*; q=0.01")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 302)) {
+                resolve(xhr.response)
+            } else if (xhr.readyState == 4) {
+                reject(xhr.response)
+            }
+        };
+        xhr.send(params)
+    })
+}
 
 const addButton = () => {
     console.log('Will add buttons')
+
+    const currentUserId = $('#current-user-id').val()
     
     $('.GridTimeline-items')
         .find('.user-actions')
@@ -41,7 +78,7 @@ const addButton = () => {
                 const button = $(template(screenName))
                 const removeOnSucess = $(element).closest('.ProfileCard')
                 
-                button.click(() => handleReport(screenName, userId, removeOnSucess))
+                button.click(() => handleReport(currentUserId, screenName, userId, removeOnSucess))
                 button.insertAfter($(element).find('.user-actions-follow-button'))
             }
         })
@@ -54,11 +91,11 @@ window.onload = () => {
     const observer = new MutationObserver(() => {
         console.log('DOM mutated')
         addButton()
-    });
+    })
     
     if (targetNode) {
         addButton()
-        observer.observe(targetNode, config);
+        observer.observe(targetNode, config)
     }
 
     chrome.runtime.onMessage.addListener(
@@ -70,7 +107,7 @@ window.onload = () => {
                 // when you do the first change the your followers-page
                 setTimeout(() => {
                     addButton()
-                    sendResponse({success: true});
+                    sendResponse({success: true})
                 }, 1000)
             }
 
@@ -79,7 +116,7 @@ window.onload = () => {
                 let targetNode = document.getElementsByClassName('GridTimeline')[0]
                 // Use DOM observer since it can take too long before the DOM is
                 // rendered so just triggering on message alone is not enough
-                observer.observe(targetNode, config); 
+                observer.observe(targetNode, config) 
             }
     })
 }
